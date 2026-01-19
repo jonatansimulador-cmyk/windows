@@ -1,0 +1,655 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <title>Evaluación Competencias v14.5 (Fixed Folder Context)</title>
+    <style>
+        /* --- ESTILOS BASE --- */
+        body, html { margin: 0; padding: 0; width: 100%; height: 100%; overflow: hidden; font-family: 'Segoe UI', sans-serif; user-select: none; background: #000; }
+
+        /* --- HUD SUPERIOR --- */
+        .top-hud {
+            position: absolute; top: 0; left: 0; width: 100%; height: 40px;
+            background: #1a1a1a; color: #ccc; display: flex; align-items: center;
+            justify-content: space-between; padding: 0 20px; box-sizing: border-box; z-index: 2000; border-bottom: 1px solid #333; font-size: 13px;
+        }
+        .progress-container { width: 250px; height: 6px; background: #333; border-radius: 3px; overflow: hidden; }
+        .progress-bar { height: 100%; background: linear-gradient(90deg, #00ff00, #76ff03); width: 100%; transition: width 1s linear; }
+
+        /* --- PANTALLAS --- */
+        .screen { display: none; width: 100%; height: 100%; position: absolute; top: 0; left: 0; }
+        .active { display: flex; }
+
+        /* --- LOGIN --- */
+        #screen-login {
+            background: url('https://images.unsplash.com/photo-1579546929518-9e396f3cc809?auto=format&fit=crop&w=1920&q=80') center/cover;
+            flex-direction: column; justify-content: center; align-items: center; color: white;
+        }
+        .login-frame { background: rgba(0,0,0,0.6); padding: 40px 60px; border-radius: 10px; text-align: center; border: 1px solid rgba(255,255,255,0.2); }
+        .user-avatar-login { width: 100px; height: 100px; background: #ddd; border-radius: 50%; margin: 0 auto 20px; border: 3px solid rgba(255,255,255,0.5); background-image: url('https://upload.wikimedia.org/wikipedia/commons/thumb/d/d8/Person_icon_BLACK-01.svg/1024px-Person_icon_BLACK-01.svg.png'); background-size: 60%; background-position: center; background-repeat: no-repeat; background-color: #eee;}
+        .login-input { display: block; width: 250px; padding: 10px; margin: 10px auto; border: 1px solid #555; background: rgba(255,255,255,0.9); font-size: 16px; }
+        .login-btn-w7 { background: linear-gradient(to bottom, #5698c4, #3a79a5); border: 1px solid #2f5a78; color: white; padding: 8px 20px; cursor: pointer; font-weight: bold; margin-top: 10px; }
+
+        /* --- ESCRITORIO (FONDO NARANJA PALMERAS) --- */
+        #screen-desktop { 
+            background: url('https://wallpaperaccess.com/full/1102339.jpg') center/cover; 
+            position: relative; cursor: default; 
+        }
+
+        /* --- ICONOS --- */
+        .desktop-icon {
+            width: 74px; height: 95px; position: absolute; display: flex; flex-direction: column;
+            align-items: center; justify-content: flex-start; color: white; cursor: pointer; 
+            border: 1px solid transparent; padding-top: 5px; text-shadow: 1px 1px 4px black;
+        }
+        .desktop-icon:hover { background: rgba(255,255,255,0.2); border: 1px solid rgba(255,255,255,0.3); border-radius: 3px; }
+        .desktop-icon.selected { background: rgba(255,255,255,0.3); border: 1px solid rgba(255,255,255,0.5); border-radius: 3px; }
+        
+        .icon-img { width: 48px; height: 48px; display: flex; align-items: center; justify-content: center; font-size: 32px; margin-bottom: 5px; filter: drop-shadow(2px 4px 4px rgba(0,0,0,0.6)); }
+        
+        /* Iconos */
+        .ico-excel { color: #1D6F42; background: white; border-radius: 3px; position: relative; width:40px; height:40px; display:flex; align-items:center; justify-content:center; font-family: Arial; font-weight:bold;}
+        .ico-excel::after { content:'X'; color:white; background:#1D6F42; position:absolute; left:-4px; font-size:20px; padding:2px 4px; border-radius:2px;}
+        .ico-folder { font-size: 50px; color: #F8D775; }
+        .ico-chrome { background: white; border-radius: 50%; font-size: 38px; width:42px; height:42px; display:flex; align-items:center; justify-content:center; }
+        .ico-trash { font-size: 45px; color: #ccc;}
+        .ico-file { background: white; color: #555; width:36px; height:48px; font-size:10px; display:flex; align-items:center; justify-content:center; position:relative; border-radius:2px; box-shadow: 1px 1px 2px rgba(0,0,0,0.4);}
+        .ico-file::before { content:'DOC'; position:absolute; bottom:4px; font-size:8px; font-weight:bold; color:#2B579A;}
+        .ico-img { font-size: 40px; }
+        
+        .desktop-icon p { font-size: 12px; margin: 0; text-align: center; line-height: 1.2; pointer-events: none; }
+        .ghost { opacity: 0.6; filter: grayscale(80%); } 
+
+        /* --- VENTANAS --- */
+        .window {
+            position: absolute; background: #f0f0f0; border: 1px solid #555; width: 800px; height: 550px;
+            top: 12%; left: 15%; display: none; flex-direction: column; 
+            box-shadow: 5px 5px 20px rgba(0,0,0,0.5); z-index: 500; border-radius: 8px 8px 0 0; overflow: hidden;
+        }
+        .win-header-aero {
+            padding: 6px 10px; display: flex; justify-content: space-between; align-items: center;
+            font-size: 14px; user-select: none;
+            background: linear-gradient(to bottom, #dbeaf9, #a5c7e9);
+            border-bottom: 1px solid #999; text-shadow: 0 0 5px white;
+            font-weight: 500; color: #333;
+        }
+        .win-controls { display: flex; gap: 2px; }
+        .win-btn { width: 24px; height: 18px; border: 1px solid rgba(0,0,0,0.2); border-radius: 3px; display: flex; align-items: center; justify-content: center; font-size: 10px; background: linear-gradient(#fff, #ddd); color:#555; cursor: default;}
+        .win-close-btn { background: linear-gradient(#e0a6a6, #c94545); color: white; font-weight: bold; border-color: #8f2929;}
+        .win-close-btn:hover { background: linear-gradient(#ffcccc, #e05a5a); cursor: pointer;}
+
+        /* --- EXCEL --- */
+        .excel-container { display: flex; flex-direction: column; height: 100%; font-family: 'Calibri', sans-serif;}
+        .ribbon-tabs { display: flex; background: #f0f0f0; border-bottom: 1px solid #ccc; padding-top: 5px; padding-left: 5px;}
+        .r-tab { padding: 6px 15px; font-size: 12px; color: #444; border: 1px solid transparent; cursor: pointer;}
+        .r-tab.active { background: white; border-color: #ccc; border-bottom-color: white; color: #1D6F42; font-weight: bold; border-radius: 3px 3px 0 0;}
+        .ribbon-toolbar { background: white; padding: 5px; height: 65px; display: flex; gap: 5px; border-bottom: 1px solid #ccc;}
+        .r-btn-big { display: flex; flex-direction: column; align-items: center; padding: 5px 10px; cursor: pointer; border: 1px solid transparent; border-radius: 3px;}
+        .r-btn-big:hover { background: #e6f3ff; border-color: #b0d7ff; }
+        .formula-bar { display:flex; padding:3px; background:white; border-bottom:1px solid #ccc; align-items:center; }
+        
+        .excel-sheet-view { flex: 1; overflow: auto; background: #fff; cursor: cell; }
+        table.excel-table { border-collapse: collapse; width: 100%; table-layout: fixed; }
+        .excel-table th { background: #e6e6e6; border: 1px solid #d0d7e5; font-weight: normal; font-size: 11px; text-align: center; height: 20px; color: #333; }
+        .excel-table td { border: 1px solid #d0d7e5; height: 20px; font-size: 11px; padding: 0 4px; color: #000; }
+        .excel-table td:focus { outline: 2px solid #1D6F42; z-index: 10; }
+        .row-head { background: #e6e6e6; width: 30px; text-align: center; border: 1px solid #d0d7e5; color: #333; }
+
+        /* --- NOTEPAD --- */
+        .notepad-area { width: 100%; height: 100%; border: none; font-family: 'Consolas', monospace; font-size: 14px; padding: 5px; resize: none; outline: none; }
+
+        /* --- EXPLORER --- */
+        .explorer-body { padding: 10px; display: flex; flex-wrap: wrap; gap: 15px; align-content: flex-start; background: white; flex: 1; }
+
+        /* --- TASKBAR & START --- */
+        .taskbar-w7 {
+            position: absolute; bottom: 0; width: 100%; height: 40px; 
+            background: #101010; border-top: 1px solid #333;
+            display: flex; align-items: center; justify-content: space-between; z-index: 1000;
+        }
+        
+        /* BOTÓN INICIO WIN 10 */
+        .start-btn-custom { 
+            width: 48px; height: 100%; cursor: pointer;
+            display: flex; align-items: center; justify-content: center;
+            transition: background-color 0.2s;
+        }
+        .start-btn-custom:hover { background-color: #333; }
+        .win-icon-flat {
+            width: 20px; height: 20px;
+            background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 88 88' fill='white'%3E%3Cpath d='M0 12.402l35.687-4.86.016 34.423-35.67.203zm35.67 33.529l.028 34.453L.028 71.297l.028-37.953zm52.301-40.65L42.16 11.667l-.055 35.132 45.842-.234zm0 39.422l-45.857.005.04 35.797 45.816-6.52z'/%3E%3C/svg%3E");
+            background-repeat: no-repeat;
+        }
+
+        .system-tray { color: white; padding: 5px; display: flex; gap: 10px; align-items: center; margin-right: 10px;}
+        .tray-icon { cursor: pointer; padding: 5px; }
+        .tray-icon:hover { background: #333; border-radius: 3px;}
+
+        /* START MENU WIN 10 STYLE */
+        .start-menu-w7 {
+            position: absolute; bottom: 40px; left: 0; width: 400px; height: 500px;
+            background: #2b2b2b; color: white; 
+            box-shadow: 5px -5px 20px rgba(0,0,0,0.5); z-index: 1001; 
+            display: none; display: flex; flex-direction: column;
+        }
+        .sm-body { flex: 1; padding: 0; overflow-y: auto; }
+        .sm-search-box { height: 50px; background: #1f1f1f; padding: 10px; box-sizing: border-box; }
+        .sm-input { width: 100%; padding: 8px; border: 1px solid #555; background: #000; color: white; font-style: normal; border-radius: 0;}
+
+        /* ESTILO RESULTADO BUSQUEDA BLOC */
+        .search-result {
+            display: flex; align-items: center; padding: 15px; gap: 15px; cursor: pointer;
+            background: #333; border-left: 4px solid #0078d7; margin: 10px;
+        }
+        .search-result:hover { background: #444; }
+        .search-icon { width: 40px; height: 40px; }
+        .search-info { display: flex; flex-direction: column; }
+        .search-title { font-size: 16px; font-weight: bold; color: white; }
+        .search-sub { font-size: 12px; color: #aaa; }
+
+        /* --- CONTEXT MENU (REALISTA) --- */
+        #context-menu {
+            position: absolute; background: #f0f0f0; border: 1px solid #999; min-width: 200px;
+            box-shadow: 3px 3px 10px rgba(0,0,0,0.3); display: none; z-index: 9999; padding: 2px 0;
+            font-family: 'Segoe UI', Tahoma, sans-serif; font-size: 12px; color: #333;
+        }
+        .ctx-item { padding: 6px 25px 6px 10px; cursor: default; display: flex; align-items: center;}
+        .ctx-item:hover:not(.disabled) { background: #d9d9d9; }
+        .ctx-item.disabled { color: #aaa; pointer-events: none; }
+        .sep { height: 1px; background: #d0d0d0; margin: 3px 1px; }
+        .ctx-icon { width: 16px; height: 16px; margin-right: 10px; text-align: center;}
+
+        /* --- TOAST --- */
+        .task-toast {
+            position: absolute; top: 60px; right: 20px; width: 300px; background: white;
+            padding: 15px; border-left: 5px solid #0078d7; box-shadow: 0 5px 15px rgba(0,0,0,0.2);
+            z-index: 1500;
+        }
+        
+        #screen-results { background: #e0eafc; flex-direction: column; align-items: center; justify-content: center; }
+        
+        /* CERTIFICADO PROFESIONAL */
+        .certificate {
+            background: #fff; width: 800px; padding: 50px; 
+            box-shadow: 0 0 50px rgba(0,0,0,0.2); border: 20px solid #fff; outline: 3px solid #003366;
+            text-align: center; font-family: 'Times New Roman', serif; position: relative;
+            max-height: 90vh; overflow-y: auto;
+        }
+        .cert-title { color: #003366; font-size: 28px; font-weight: bold; text-transform: uppercase; margin-bottom: 5px; letter-spacing: 1px;}
+        .cert-sub { color: #777; font-size: 14px; margin-bottom: 30px; text-transform: uppercase; letter-spacing: 1px; }
+        
+        .cert-name { 
+            font-size: 40px; color: #000; font-weight: 900; 
+            margin: 20px 0; text-transform: uppercase; letter-spacing: 1px;
+        }
+        
+        .score-val { font-size: 60px; font-weight: bold; color: #217346; margin: 20px 0;}
+        
+        .results-list { text-align: left; margin: 30px 0; border-top: 1px solid #eee; padding-top: 20px; font-family: 'Segoe UI', sans-serif;}
+        .res-row { display: flex; justify-content: space-between; padding: 8px 0; border-bottom: 1px solid #f5f5f5; font-size: 14px; }
+        .status-ok { color: green; font-weight: bold; }
+        .status-fail { color: red; font-weight: bold; }
+        
+        .feedback-box {
+            background: #fff0f0; border-left: 5px solid red; padding: 15px; margin-top: 20px; text-align: left;
+            font-family: 'Segoe UI'; font-size: 13px; display: none;
+        }
+
+        /* Flyouts */
+        .flyout-w7 {
+            position: absolute; bottom: 40px !important; right: 0; width: 300px; background: #1f1f1f; color: white;
+            border: 1px solid #333; padding: 15px; display: none; z-index: 1002;
+        }
+    </style>
+</head>
+<body>
+
+    <div class="top-hud" id="hud" style="display:none;">
+        <span>🛠️ Evaluación Técnica</span>
+        <div style="display: flex; align-items: center; gap: 10px;">
+            <span>Tiempo:</span>
+            <div class="progress-container"><div class="progress-bar" id="timerBar"></div></div>
+        </div>
+    </div>
+
+    <div id="screen-login" class="screen active">
+        <div class="login-frame">
+            <div class="user-avatar-login"></div>
+            <input type="text" id="inputName" class="login-input" placeholder="Nombre Completo">
+            <input type="text" id="inputDNI" class="login-input" placeholder="DNI">
+            <button class="login-btn-w7" onclick="startExam()">INICIAR</button>
+        </div>
+    </div>
+
+    <div id="screen-desktop" class="screen" onclick="handleDesktopClick(event)" oncontextmenu="handleRightClick(event)">
+        
+        <div class="task-toast">
+            <h4 id="taskTitle" style="margin:0 0 5px 0; font-family:'Segoe UI';">Cargando...</h4>
+            <p id="taskDesc" style="margin:0; font-size:13px; color:#555;">...</p>
+        </div>
+
+        <div class="desktop-icon" style="top: 60px; left: 20px;" id="icon-excel" onclick="selectIcon(this, event)" ondblclick="launchApp('excel')">
+            <div class="icon-img ico-excel"></div><p>Excel</p>
+        </div>
+        <div class="desktop-icon" style="top: 160px; left: 20px;" id="icon-chrome" onclick="selectIcon(this, event)" ondblclick="launchApp('chrome')">
+            <div class="icon-img ico-chrome"><span style="color:#ea4335">●</span></div><p>Chrome</p>
+        </div>
+        <div class="desktop-icon" id="icon-trash" style="top: 260px; left: 20px;" data-id="trash" onclick="selectIcon(this, event)">
+            <div class="icon-img ico-trash">🗑️</div><p>Papelera</p>
+        </div>
+
+        <div class="desktop-icon" id="icon-folder" style="top: 60px; left: 120px;" onclick="selectIcon(this, event)" ondblclick="launchApp('explorer')">
+            <div class="icon-img ico-folder">📂</div><p>Documentos</p>
+        </div>
+        <div class="desktop-icon" id="file-report" style="top: 160px; left: 120px;" data-id="file-report" onclick="selectIcon(this, event)">
+            <div class="icon-img ico-file"></div><p>Reporte_Final.docx</p>
+        </div>
+        <div class="desktop-icon" id="file-trash" style="top: 260px; left: 120px;" data-id="file-trash" onclick="selectIcon(this, event)">
+            <div class="icon-img ico-img">🖼️</div><p>Error.jpg</p>
+        </div>
+
+        <div class="window" id="win-excel" style="width: 900px; height: 600px;">
+            <div class="win-header-aero"><span>Libro1 - Excel</span><div class="win-btn win-close-btn" onclick="closeWindow('win-excel')">✕</div></div>
+            <div class="excel-container">
+                <div class="ribbon-tabs"><div class="r-tab active">Inicio</div><div class="r-tab">Insertar</div></div>
+                <div class="ribbon-toolbar">
+                    <div class="r-btn-big" onclick="checkExcelSave()"><span style="font-size:24px;">💾</span><span>Guardar</span></div>
+                </div>
+                <div class="formula-bar"><div class="fb-name" style="width:40px;border:1px solid #ccc;margin-right:5px;text-align:center;">A1</div><span class="fb-fx">fx</span><input type="text" class="fb-input" style="flex:1;"></div>
+                <div class="excel-sheet-view">
+                    <table class="excel-table">
+                        <thead>
+                            <tr>
+                                <th class="row-head"></th><th>A</th><th>B</th><th>C</th><th>D</th><th>E</th><th>F</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <tr>
+                                <td class="row-head">1</td>
+                                <td contenteditable="true" oninput="state.excelTyped=true" style="border:2px solid #1D6F42;"></td>
+                                <td contenteditable="true"></td><td contenteditable="true"></td><td contenteditable="true"></td><td contenteditable="true"></td><td contenteditable="true"></td>
+                            </tr>
+                            <tr><td class="row-head">2</td><td contenteditable="true"></td><td contenteditable="true"></td><td contenteditable="true"></td><td contenteditable="true"></td><td contenteditable="true"></td><td contenteditable="true"></td></tr>
+                            <tr><td class="row-head">3</td><td contenteditable="true"></td><td contenteditable="true"></td><td contenteditable="true"></td><td contenteditable="true"></td><td contenteditable="true"></td><td contenteditable="true"></td></tr>
+                            <tr><td class="row-head">4</td><td contenteditable="true"></td><td contenteditable="true"></td><td contenteditable="true"></td><td contenteditable="true"></td><td contenteditable="true"></td><td contenteditable="true"></td></tr>
+                            <tr><td class="row-head">5</td><td contenteditable="true"></td><td contenteditable="true"></td><td contenteditable="true"></td><td contenteditable="true"></td><td contenteditable="true"></td><td contenteditable="true"></td></tr>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+
+        <div class="window" id="win-notepad" style="width: 500px; height: 400px;">
+            <div class="win-header-aero"><span>Bloc de notas</span><div class="win-btn win-close-btn" onclick="closeWindow('win-notepad')">✕</div></div>
+            <textarea class="notepad-area" style="flex:1; padding:5px; resize:none; outline:none;" oninput="state.notepadTyped=true"></textarea>
+        </div>
+
+        <div class="window" id="win-explorer">
+            <div class="win-header-aero"><span>Mis documentos</span><div class="win-btn win-close-btn" onclick="closeWindow('win-explorer')">✕</div></div>
+            <div style="padding:5px; background:white; border-bottom:1px solid #ccc;">Bibliotecas ▶ Mis documentos</div>
+            <div class="explorer-body" id="explorer-body"></div>
+        </div>
+
+        <div class="start-menu-w7" id="startMenu" onclick="event.stopPropagation()">
+            <div class="sm-body" id="appList"></div>
+            <div class="sm-search-box">
+                <input type="text" class="sm-input" id="startSearch" placeholder="Escribe aquí para buscar" onkeyup="filterApps()" onkeydown="handleEnter(event)">
+            </div>
+        </div>
+
+        <div class="taskbar-w7">
+            <div class="start-btn-custom" onclick="toggleStart(event)">
+                <div class="win-icon-flat"></div>
+            </div>
+            <div class="system-tray" style="color:white; padding:5px;">
+                <div style="cursor:pointer;" onclick="toggleWifi(event)">📶</div>
+                <div style="cursor:pointer; margin-left:10px;" onclick="toggleVolume(event)">🔊</div>
+            </div>
+        </div>
+
+        <div class="flyout-w7" id="flyout-vol" onclick="event.stopPropagation()">
+             <div style="text-align:center;">Altavoces</div>
+             <div style="display:flex; justify-content:center; padding:10px;">
+                 <input type="range" id="vol-range" min="0" max="100" value="30" oninput="checkVolume()" style="width:100%">
+             </div>
+             <div style="text-align:center;" id="vol-text">30</div>
+        </div>
+
+        <div class="flyout-w7" id="flyout-wifi" onclick="event.stopPropagation()">
+            <div style="font-weight:bold; border-bottom:1px solid #ccc;">Redes</div>
+            <div style="padding:10px; cursor:pointer;" onclick="connectWifi(this)">Oficina_5G</div>
+            <div id="wifi-msg" style="color:#0078d7; display:none;">Conectando...</div>
+        </div>
+
+        <div id="context-menu"></div>
+
+    </div>
+
+    <div id="screen-results" class="screen">
+        <div class="certificate">
+            <h1 class="cert-title">Certificado de Competencias Digitales</h1>
+            <p class="cert-sub">Evaluación Oficial de Operatividad</p>
+            
+            <p style="margin-top:20px;">Se otorga el presente documento a:</p>
+            <div class="cert-name" id="resName">NOMBRE</div>
+            <p>DNI: <span id="resDNI"></span></p>
+
+            <div class="results-list" id="resultsList"></div>
+
+            <div class="cert-score-box">
+                <div>CALIFICACIÓN FINAL</div>
+                <div class="score-val" id="resScore">0%</div>
+            </div>
+
+            <div id="feedbackBox" class="feedback-box">
+                <strong>Retroalimentación:</strong>
+                <ul id="feedbackList" style="margin:5px 0 0 20px; padding:0;"></ul>
+            </div>
+            
+            <button onclick="location.reload()" style="margin-top:20px; padding:10px 30px; background:#003366; color:white; border:none; cursor:pointer;">Cerrar Sistema</button>
+        </div>
+    </div>
+
+    <script>
+        // GLOBAL STATE
+        let candidate = { name: "", dni: "" };
+        let currentTask = 0;
+        let score = 0;
+        let timer;
+        let timeLeft;
+        let report = [];
+        
+        let state = {
+            clipboard: null,
+            rightClickId: null,
+            selectedId: null, 
+            excelTyped: false,
+            notepadTyped: false
+        };
+
+        const TASKS = [
+            { id: 1, title: "Búsqueda", desc: "Usa el menú Inicio, busca 'Bloc' y ábrelo.", time: 30, feedback: "No utilizaste el buscador o no abriste la app correcta." },
+            { id: 2, title: "Bloc de Notas", desc: "Escribe tu nombre y cierra la ventana.", time: 30, feedback: "No escribiste en el documento o no cerraste la ventana." },
+            { id: 3, title: "Excel", desc: "Abre Excel, escribe en A1 y Guarda.", time: 40, feedback: "No guardaste el archivo o no escribiste en la celda A1." },
+            { id: 4, title: "Copiar", desc: "Copia el archivo 'Reporte_Final.docx'.", time: 20, feedback: "No utilizaste la función Copiar correctamente." },
+            { id: 5, title: "Pegar", desc: "Abre 'Documentos' y Pega el archivo.", time: 30, feedback: "No pegaste el archivo en la carpeta destino." },
+            { id: 6, title: "Papelera", desc: "Vacía la Papelera de Reciclaje.", time: 20, feedback: "No vaciaste la papelera." },
+            { id: 7, title: "Eliminar", desc: "Elimina el archivo 'Error.jpg'.", time: 20, feedback: "No eliminaste el archivo solicitado." },
+            { id: 8, title: "Volumen", desc: "Sube el volumen al 100.", time: 20, feedback: "No ajustaste el volumen al máximo." },
+            { id: 9, title: "Red", desc: "Conecta a Oficina_5G.", time: 30, feedback: "No te conectaste a la red WiFi solicitada." },
+            { id: 10, title: "Actualizar", desc: "Haz clic derecho en el escritorio y selecciona 'Actualizar'.", time: 10, feedback: "No actualizaste el escritorio." }
+        ];
+
+        // --- KEYBOARD ---
+        document.addEventListener('keydown', function(e) {
+            if (e.ctrlKey && e.key === 'c') {
+                if (currentTask === 3 && state.selectedId === 'file-report') {
+                    state.clipboard = state.selectedId;
+                    passTask();
+                }
+            }
+            if (e.ctrlKey && e.key === 'v') {
+                const winExplorer = document.getElementById('win-explorer');
+                if (currentTask === 4 && state.clipboard && winExplorer.style.display === 'flex') {
+                    pasteFile();
+                }
+            }
+            if (e.key === 'Delete') {
+                if (currentTask === 6 && state.selectedId === 'file-trash') {
+                    document.getElementById('file-trash').remove();
+                    passTask();
+                }
+            }
+        });
+
+        function handleEnter(e) {
+            if(e.key === 'Enter') {
+                const v = document.getElementById('startSearch').value.toLowerCase();
+                if(v.includes('bloc') && currentTask === 0) openApp('notepad');
+            }
+        }
+
+        function selectIcon(el, e) {
+            e.stopPropagation();
+            deselectAll();
+            el.classList.add('selected');
+            state.selectedId = el.dataset.id || el.id;
+        }
+
+        function handleDesktopClick(e) {
+            hideAllFlyouts();
+            if(e.target.id === 'screen-desktop') deselectAll();
+        }
+
+        function deselectAll() {
+            document.querySelectorAll('.desktop-icon').forEach(i => i.classList.remove('selected'));
+            state.selectedId = null;
+        }
+
+        function startExam() {
+            const n = document.getElementById('inputName').value;
+            if(!n) { document.getElementById('loginError').style.display='block'; return; }
+            candidate.name = n; candidate.dni = document.getElementById('inputDNI').value;
+            document.getElementById('screen-login').classList.remove('active');
+            document.getElementById('screen-desktop').classList.add('active');
+            document.getElementById('hud').style.display = 'flex';
+            loadTask(0);
+        }
+
+        function loadTask(idx) {
+            if(idx >= TASKS.length) { finishExam(); return; }
+            currentTask = idx;
+            const t = TASKS[idx];
+            document.getElementById('taskTitle').innerText = `Tarea ${idx+1}: ${t.title}`;
+            document.getElementById('taskDesc').innerHTML = t.desc;
+            timeLeft = t.time;
+            updateTimer();
+            clearInterval(timer);
+            timer = setInterval(() => { timeLeft--; updateTimer(); if(timeLeft<=0) failTask(); }, 1000);
+        }
+
+        function updateTimer() {
+            document.getElementById('timerBar').style.width = (timeLeft / TASKS[currentTask].time * 100) + "%";
+        }
+
+        function complete(success) {
+            clearInterval(timer);
+            report.push({ name: TASKS[currentTask].title, ok: success, feedback: TASKS[currentTask].feedback });
+            if(success) score += 10;
+            const toast = document.querySelector('.task-toast');
+            toast.style.background = success ? "#eaffea" : "#ffeaea";
+            document.getElementById('taskTitle').innerText = success ? "¡Bien!" : "Tiempo!";
+            setTimeout(() => loadTask(currentTask + 1), 1500);
+        }
+        function passTask() { complete(true); }
+        function failTask() { complete(false); }
+
+        function launchApp(app) {
+            hideAllFlyouts();
+            if(app==='excel' && currentTask===2) document.getElementById('win-excel').style.display='flex';
+            else if(app==='explorer' && currentTask===4) document.getElementById('win-explorer').style.display='flex';
+            else if(currentTask===0) alert("Usa el menú Inicio.");
+        }
+        function closeWindow(id) { 
+            document.getElementById(id).style.display = 'none';
+            if(id === 'win-notepad' && currentTask === 1) {
+                if(state.notepadTyped) passTask();
+            }
+        }
+
+        function toggleStart(e) { if(e) e.stopPropagation(); hideAllFlyouts(); const m=document.getElementById('startMenu'); m.style.display = m.style.display==='flex'?'none':'flex'; if(m.style.display==='flex') document.getElementById('startSearch').focus();}
+        function filterApps() {
+            const v = document.getElementById('startSearch').value.toLowerCase();
+            let html = '';
+            if(v.includes('bloc')) html += `
+            <div class="search-result" onclick="openApp('notepad')">
+                <img src="https://upload.wikimedia.org/wikipedia/commons/2/21/Notepad_icon_%28Windows_10%29.svg" class="search-icon">
+                <div class="search-info">
+                    <span class="search-title">Bloc de notas</span>
+                    <span class="search-sub">Sistema</span>
+                </div>
+            </div>`;
+            document.getElementById('appList').innerHTML = html;
+        }
+        function openApp(app) {
+            toggleStart();
+            if(app==='notepad' && currentTask===0) { document.getElementById('win-notepad').style.display='flex'; passTask(); }
+        }
+
+        function checkExcelSave() {
+            if(currentTask === 2) {
+                if(state.excelTyped) { document.getElementById('win-excel').style.display='none'; passTask(); }
+                else alert("Escribe en A1.");
+            }
+        }
+
+        function handleRightClick(e) {
+            e.preventDefault();
+            // Intenta seleccionar si el clic fue sobre un icono
+            const iconEl = e.target.closest('.desktop-icon');
+            if (iconEl) selectIcon(iconEl, e);
+
+            const isTrash = state.selectedId === 'trash';
+            const clickedOnIcon = !!iconEl;
+            // Clic en el fondo del escritorio o fondo de una ventana de carpeta
+            const clickedBackground = e.target.id === 'screen-desktop' || (!!e.target.closest('.explorer-body') && !clickedOnIcon);
+
+            const menu = document.getElementById('context-menu');
+            let html = '';
+
+            // 1. Menú de Iconos (Archivos/Carpetas/Papelera)
+            if (clickedOnIcon && state.selectedId) {
+                if (isTrash) {
+                    html += `<div class="ctx-item" onclick="emptyTrash()"><span class="ctx-icon">🗑️</span>Vaciar Papelera</div>`;
+                    html += `<div class="sep"></div>`;
+                } else {
+                    html += `<div class="ctx-item"><span class="ctx-icon">📂</span>Abrir</div>`;
+                    html += `<div class="sep"></div>`;
+                    html += `<div class="ctx-item" onclick="execCopy()"><span class="ctx-icon">📄</span>Copiar</div>`;
+                    html += `<div class="ctx-item disabled"><span class="ctx-icon">✂️</span>Cortar</div>`;
+                    html += `<div class="sep"></div>`;
+                    html += `<div class="ctx-item" onclick="execDel()"><span class="ctx-icon">❌</span>Eliminar</div>`;
+                    html += `<div class="sep"></div>`;
+                    html += `<div class="ctx-item"><span class="ctx-icon">⚙️</span>Propiedades</div>`;
+                }
+            }
+            // 2. Menú de Fondo (Escritorio o Carpeta)
+            else if (clickedBackground) {
+                html += `<div class="ctx-item"><span class="ctx-icon">👁️</span>Ver</div>`;
+                html += `<div class="ctx-item"><span class="ctx-icon">🔃</span>Ordenar por</div>`;
+                html += `<div class="sep"></div>`;
+                // Actualizar (Necesario para Tarea 10)
+                html += `<div class="ctx-item" onclick="execRefresh()"><span class="ctx-icon">🔄</span>Actualizar</div>`;
+                html += `<div class="sep"></div>`;
+                // Pegar (Habilitado solo si hay algo en portapapeles)
+                const pasteClass = state.clipboard ? '' : 'disabled';
+                html += `<div class="ctx-item ${pasteClass}" onclick="execPaste()"><span class="ctx-icon">📋</span>Pegar</div>`;
+                html += `<div class="ctx-item disabled"><span class="ctx-icon">🔗</span>Pegar acceso directo</div>`;
+                html += `<div class="sep"></div>`;
+                html += `<div class="ctx-item"><span class="ctx-icon">✨</span>Nuevo</div>`;
+                html += `<div class="sep"></div>`;
+                if (e.target.id === 'screen-desktop') {
+                   html += `<div class="ctx-item"><span class="ctx-icon">🖥️</span>Configuración de pantalla</div>`;
+                   html += `<div class="ctx-item"><span class="ctx-icon">🎨</span>Personalizar</div>`;
+                } else {
+                   html += `<div class="ctx-item"><span class="ctx-icon">⚙️</span>Propiedades</div>`;
+                }
+            } else {
+                return; // Clic en otro lado
+            }
+
+            if(html) {
+                menu.innerHTML = html;
+                menu.style.display = 'block';
+                // Ajuste básico
+                let x = e.clientX; let y = e.clientY;
+                if (x + 200 > window.innerWidth) x -= 200;
+                if (y + 300 > window.innerHeight) y -= 300;
+                menu.style.left = x + 'px'; menu.style.top = y + 'px';
+            }
+        }
+
+        function execRefresh() {
+            document.getElementById('context-menu').style.display='none';
+            if(currentTask===9) passTask();
+        }
+
+        function execCopy() {
+            document.getElementById('context-menu').style.display='none';
+            if(currentTask===3 && state.selectedId==='file-report') {
+                state.clipboard = state.selectedId;
+                passTask();
+            }
+        }
+        function execPaste() { pasteFile(); }
+        
+        function pasteFile() {
+            document.getElementById('context-menu').style.display='none';
+            if(currentTask===4 && state.clipboard) {
+                const el = document.getElementById(state.clipboard).cloneNode(true);
+                el.style.position = 'static'; el.style.margin = '10px';
+                el.id = el.id + "_cloned"; 
+                document.getElementById('explorer-body').appendChild(el);
+                state.clipboard = null; passTask();
+            }
+        }
+
+        function emptyTrash() { if(currentTask===5) { document.getElementById('context-menu').style.display='none'; passTask(); } }
+        function execDel() { 
+            document.getElementById('context-menu').style.display='none';
+            if(currentTask===6 && state.selectedId==='file-trash') { document.getElementById('file-trash').remove(); passTask(); }
+        }
+
+        function toggleWifi(e) { e.stopPropagation(); hideAllFlyouts(); document.getElementById('flyout-wifi').style.display='block'; }
+        function toggleVolume(e) { e.stopPropagation(); hideAllFlyouts(); document.getElementById('flyout-vol').style.display='block'; }
+        
+        function hideAllFlyouts() {
+            document.getElementById('flyout-wifi').style.display='none';
+            document.getElementById('flyout-vol').style.display='none';
+            document.getElementById('startMenu').style.display='none';
+            document.getElementById('context-menu').style.display='none';
+        }
+
+        function checkVolume() {
+            const v = document.getElementById('vol-range').value;
+            document.getElementById('vol-text').innerText = v;
+            if(currentTask===7 && v==100) { hideAllFlyouts(); passTask(); }
+        }
+
+        function connectWifi(el) {
+            if(currentTask===8) {
+                document.getElementById('wifi-msg').style.display = "block";
+                setTimeout(() => { hideAllFlyouts(); passTask(); }, 1500);
+            }
+        }
+
+        function finishExam() {
+            document.getElementById('screen-desktop').classList.remove('active');
+            document.getElementById('hud').style.display = 'none';
+            document.getElementById('screen-results').classList.add('active');
+            
+            document.getElementById('resName').innerText = candidate.name;
+            document.getElementById('resDNI').innerText = candidate.dni;
+            document.getElementById('resScore').innerText = score + "%";
+            
+            const list = document.getElementById('resultsList');
+            const feedbackBox = document.getElementById('feedbackBox');
+            const feedbackList = document.getElementById('feedbackList');
+            
+            let hasErrors = false;
+
+            report.forEach(r => {
+                list.innerHTML += `<div class="res-row"><span>${r.name}</span><span class="${r.ok ? 'status-ok' : 'status-fail'}">${r.ok?'APROBADO':'FALLIDO'}</span></div>`;
+                if (!r.ok) {
+                    hasErrors = true;
+                    feedbackList.innerHTML += `<li><b>${r.name}:</b> ${r.feedback}</li>`;
+                }
+            });
+
+            if (hasErrors) {
+                feedbackBox.style.display = "block";
+            }
+        }
+    </script>
+</body>
+</html>
